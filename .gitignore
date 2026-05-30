@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database (local dev)
+/dev.db
+*.db-journal
+
+# screenshots (temporary)
+screenshot-*.png
+
+# generated prisma client
+/src/generated/prisma

@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// 岗位
+model Position {
+  id          String   @id @default(cuid())
+  name        String   // 研发/产品/销售/运营
+  abilities   String   // JSON: 能力维度列表
+  weights     String   // JSON: 各维度权重
+  createdAt   DateTime @default(now())
+  interns     Intern[]
+}
+
+// 导师
+model Mentor {
+  id          String   @id @default(cuid())
+  name        String
+  department  String
+  createdAt   DateTime @default(now())
+  interns     Intern[]
+  feedbacks   MentorFeedback[]
+}
+
+// 实习生
+model Intern {
+  id              String   @id @default(cuid())
+  name            String
+  gender          String   // 男/女
+  school          String
+  major           String
+  entryDate       DateTime // 入职日期
+  phase           String   @default("入门期") // 入门期/适应期/产出期/转正评估期
+
+  positionId      String
+  position        Position @relation(fields: [positionId], references: [id])
+
+  mentorId        String
+  mentor          Mentor   @relation(fields: [mentorId], references: [id])
+
+  // 核心评分（最新）
+  fitScore        Int      @default(0) // 适岗度 0-100
+  riskScore       Int      @default(0) // 风险度 0-100
+  potentialScore  Int      @default(0) // 高潜度 0-100
+
+  // 标签（JSON数组）
+  tags            String   @default("[]")
+
+  // 风险等级：低/中/高
+  riskLevel       String   @default("低")
+
+  // 高潜标签
+  potentialType   String   @default("")
+
+  // 周任务完成率
+  taskCompletionRate Int   @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  weeklyReports   WeeklyReport[]
+  mentorFeedbacks MentorFeedback[]
+  tasks           Task[]
+  abilityScores   AbilityScore[]
+  riskAlerts      RiskAlert[]
+  scoreHistory    ScoreHistory[]
+}
+
+// 周报
+model WeeklyReport {
+  id          String   @id @default(cuid())
+  internId    String
+  intern      Intern   @relation(fields: [internId], references: [id])
+  weekStart   DateTime
+  content     String
+
+  // AI分析结果
+  aiSummary   String   @default("")
+  emotionSignal String @default("中性")
+  difficulties String  @default("")
+  needsHelp   Boolean  @default(false)
+  wordCount   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+}
+
+// 导师反馈
+model MentorFeedback {
+  id          String   @id @default(cuid())
+  internId    String
+  intern      Intern   @relation(fields: [internId], references: [id])
+  mentorId    String
+  mentor      Mentor   @relation(fields: [mentorId], references: [id])
+  weekStart   DateTime
+
+  performance Int      // 1-5
+  comment     String
+
+  strengths   String   @default("")
+  concerns    String   @default("")
+  needsHR     Boolean  @default(false)
+  isSpecific  Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+}
+
+// 任务
+model Task {
+  id          String   @id @default(cuid())
+  internId    String
+  intern      Intern   @relation(fields: [internId], references: [id])
+  title       String
+  description String   @default("")
+  weekStart   DateTime
+
+  status      String   @default("pending")
+  completedAt DateTime?
+
+  createdAt   DateTime @default(now())
+}
+
+// 能力评分
+model AbilityScore {
+  id          String   @id @default(cuid())
+  internId    String
+  intern      Intern   @relation(fields: [internId], references: [id])
+  dimension   String
+  score       Int
+  weekStart   DateTime
+
+  createdAt   DateTime @default(now())
+}
+
+// 风险预警
+model RiskAlert {
+  id          String   @id @default(cuid())
+  internId    String
+  intern      Intern   @relation(fields: [internId], references: [id])
+
+  type        String
+  level       String
+  reason      String
+  action      String
+
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+}
+
+// 评分历史
+model ScoreHistory {
+  id          String   @id @default(cuid())
+  internId    String
+  intern      Intern   @relation(fields: [internId], references: [id])
+  weekStart   DateTime
+
+  fitScore    Int
+  riskScore   Int
+  potentialScore Int
+  taskCompletionRate Int
+
+  createdAt   DateTime @default(now())
+}
