@@ -1,28 +1,24 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getInternsList } from '@/repositories/intern';
+import { safeJsonParse } from '@/lib/safe-json';
+import type { PaginatedResponse, InternListItem } from '@/types/api';
 
-export async function GET() {
+const CACHE_HEADERS = { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=30' };
+
+export async function GET(request: Request) {
   try {
-    const interns = await prisma.intern.findMany({
-      include: {
-        position: true,
-        mentor: true,
-        weeklyReports: {
-          orderBy: { weekStart: 'desc' },
-          take: 1,
-        },
-        mentorFeedbacks: {
-          orderBy: { weekStart: 'desc' },
-          take: 1,
-        },
-        riskAlerts: {
-          where: { isActive: true },
-        },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+    const { searchParams } = new URL(request.url);
+    const page = Number(searchParams.get('page')) || 0;
+    const pageSize = Math.min(100, Math.max(1, Number(searchParams.get('pageSize')) || 20));
 
-    const formattedInterns = interns.map(intern => ({
+    // 向后兼容：不带 page 参数时返回完整数组（原行为）
+    const usePagination = page > 0;
+    const skip = usePagination ? (page - 1) * pageSize : 0;
+    const take = usePagination ? pageSize : 1000;
+
+    const { interns, total } = await getInternsList(skip, take);
+
+    const formatted: InternListItem[] = interns.map((intern) => ({
       id: intern.id,
       name: intern.name,
       gender: intern.gender,
@@ -35,7 +31,7 @@ export async function GET() {
       fitScore: intern.fitScore,
       riskScore: intern.riskScore,
       potentialScore: intern.potentialScore,
-      tags: JSON.parse(intern.tags),
+      tags: safeJsonParse<string[]>(Array.isArray(intern.tags) ? JSON.stringify(intern.tags) : String(intern.tags), []),
       riskLevel: intern.riskLevel,
       potentialType: intern.potentialType,
       taskCompletionRate: intern.taskCompletionRate,
@@ -44,12 +40,20 @@ export async function GET() {
       hasActiveAlert: intern.riskAlerts.length > 0,
     }));
 
-    return NextResponse.json(formattedInterns);
+    if (usePagination) {
+      const payload: PaginatedResponse<InternListItem> = {
+        data: formatted,
+        page,
+        pageSize,
+        total,
+      };
+      return NextResponse.json(payload, { headers: CACHE_HEADERS });
+    }
+
+    // 向后兼容：不分页时直接返回数组
+    return NextResponse.json(formatted, { headers: CACHE_HEADERS });
   } catch (error) {
     console.error('Interns API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch interns' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch interns' }, { status: 500 });
   }
 }

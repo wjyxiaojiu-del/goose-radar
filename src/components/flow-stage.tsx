@@ -16,9 +16,9 @@ export type StageKey = 'scan' | 'alert' | 'suggest' | 'intervene' | 'track';
 
 const STAGES: { key: StageKey; label: string; href: string; icon: React.ReactNode }[] = [
   { key: 'scan',      label: '扫描', href: '/',              icon: <RadarChartOutlined /> },
-  { key: 'alert',     label: '发现', href: '/alerts',        icon: <WarningOutlined /> },
+  { key: 'alert',     label: '预警', href: '/alerts',        icon: <WarningOutlined /> },
   { key: 'suggest',   label: '建议', href: '/suggestions',   icon: <BulbOutlined /> },
-  { key: 'intervene', label: '识别', href: '/potentials',    icon: <ThunderboltOutlined /> },
+  { key: 'intervene', label: '干预', href: '/alerts',        icon: <ThunderboltOutlined /> },
   { key: 'track',     label: '跟踪', href: '/interns',       icon: <CheckCircleOutlined /> },
 ];
 
@@ -26,8 +26,9 @@ const STAGES: { key: StageKey; label: string; href: string; icon: React.ReactNod
  * 流程阶段指示器 — 放在各页面顶部，让评审一眼知道"我在闭环哪一步"。
  * current 标记当前阶段，已完成的阶段可点击跳转。
  * 小屏只显示图标 + 连接线，大屏显示完整标签。
+ * 传入 caseId，则"干预"阶段会直接跳到该实习生的干预方案页。
  */
-export function FlowStage({ current }: { current: StageKey }) {
+export function FlowStage({ current, caseId }: { current: StageKey; caseId?: string }) {
   const screens = useBreakpoint();
   const compact = !screens.sm;
   const currentIdx = STAGES.findIndex(s => s.key === current);
@@ -45,11 +46,12 @@ export function FlowStage({ current }: { current: StageKey }) {
       {STAGES.map((stage, i) => {
         const isDone = i < currentIdx;
         const isActive = i === currentIdx;
+        const href = stage.key === 'intervene' && caseId ? `/interventions/${caseId}` : stage.href;
 
         return (
           <div key={stage.key} style={{ display: 'flex', alignItems: 'center' }}>
             <Link
-              href={stage.href}
+              href={href}
               title={stage.label}
               style={{
                 display: 'flex',

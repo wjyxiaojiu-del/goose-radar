@@ -19,22 +19,22 @@ async function main() {
     prisma.position.create({
       data: {
         name: '研发实习生',
-        abilities: JSON.stringify(['编程基础', '问题定位', '代码规范', '学习能力', '协作沟通', '工程意识']),
-        weights: JSON.stringify([0.25, 0.20, 0.15, 0.15, 0.15, 0.10]),
+        abilities: ['编程基础', '问题定位', '代码规范', '学习能力', '协作沟通', '工程意识'],
+        weights: [0.25, 0.20, 0.15, 0.15, 0.15, 0.10],
       },
     }),
     prisma.position.create({
       data: {
         name: '产品实习生',
-        abilities: JSON.stringify(['用户理解', '逻辑分析', '需求表达', '数据意识', '沟通推进', '业务敏感度']),
-        weights: JSON.stringify([0.20, 0.20, 0.20, 0.15, 0.15, 0.10]),
+        abilities: ['用户理解', '逻辑分析', '需求表达', '数据意识', '沟通推进', '业务敏感度'],
+        weights: [0.20, 0.20, 0.20, 0.15, 0.15, 0.10],
       },
     }),
     prisma.position.create({
       data: {
         name: '销售实习生',
-        abilities: JSON.stringify(['客户理解', '表达能力', '产品理解', '抗压能力', '跟进意识', '目标感']),
-        weights: JSON.stringify([0.20, 0.20, 0.15, 0.15, 0.15, 0.15]),
+        abilities: ['客户理解', '表达能力', '产品理解', '抗压能力', '跟进意识', '目标感'],
+        weights: [0.20, 0.20, 0.15, 0.15, 0.15, 0.15],
       },
     }),
   ]);
@@ -83,7 +83,7 @@ async function main() {
     const intern = await prisma.intern.create({
       data: {
         ...data,
-        tags: JSON.stringify(data.tags),
+        tags: data.tags,
         entryDate: new Date(Date.now() - Math.floor(Math.random() * 60 + 10) * 24 * 60 * 60 * 1000),
       },
     });
@@ -116,7 +116,7 @@ async function main() {
 
     // 能力评分
     const pos = positions.find(p => p.id === intern.positionId)!;
-    const abilities: string[] = JSON.parse(pos.abilities);
+    const abilities = (pos.abilities ?? []) as unknown as string[];
     for (const ability of abilities) {
       await prisma.abilityScore.create({
         data: {
@@ -273,12 +273,12 @@ async function main() {
           internId: intern.id,
           type: riskType,
           level: '高',
-          reason: JSON.stringify([
+          reason: [
             '连续两周核心任务延期',
             '周报中出现消极情绪表达',
             '导师反馈需要HR介入',
             '任务完成率低于60%',
-          ]),
+          ],
           action: 'HR本周优先沟通，了解具体困难，制定改进计划',
         },
       });
@@ -288,11 +288,11 @@ async function main() {
           internId: intern.id,
           type: '融入',
           level: '中',
-          reason: JSON.stringify([
+          reason: [
             '协作记录较少',
             '主动反馈频率下降',
             '部分任务进度滞后',
-          ]),
+          ],
           action: '导师增加1v1频率，安排团队buddy',
         },
       });

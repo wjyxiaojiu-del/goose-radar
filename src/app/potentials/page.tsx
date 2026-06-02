@@ -8,6 +8,7 @@ import {
   Progress,
   Popover,
   Table,
+  Grid,
 } from 'antd';
 import {
   StarOutlined,
@@ -19,10 +20,11 @@ import {
   RocketOutlined,
 } from '@ant-design/icons';
 import dynamic from 'next/dynamic';
+const { useBreakpoint } = Grid;
+
 import Link from 'next/link';
 import { fetchJson } from '@/lib/fetch-json';
 import { ChartWithFallback } from '@/components/chart-with-fallback';
-import { FlowStage } from '@/components/flow-stage';
 
 const ReactECharts = dynamic(() => import('echarts-for-react'), {
   ssr: false,
@@ -99,6 +101,8 @@ function getPositionLabel(position: string) {
 export default function PotentialsPage() {
   const [data, setData] = useState<PotentialsData>(FALLBACK_POTENTIALS);
   const [loading, setLoading] = useState(false);
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const fetchPotentials = useCallback((skipCache?: boolean) => {
     setLoading(true);
@@ -135,7 +139,7 @@ export default function PotentialsPage() {
 
   const risingCount = useMemo(() => data?.interns.filter(i => i.growthTrend === 'rising').length || 0, [data]);
 
-  const typePieOption = {
+  const typePieOption = useMemo(() => ({
     tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
     legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 11 } },
     series: [{
@@ -149,15 +153,15 @@ export default function PotentialsPage() {
       labelLine: { show: false },
       data: Object.entries(typeDistribution).map(([name, value]) => ({ name, value })),
     }],
-  };
+  }), [typeDistribution]);
 
-  const positionBarOption = {
+  const positionBarOption = useMemo(() => ({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: { left: '3%', right: '4%', bottom: '3%', top: '12%', containLabel: true },
     xAxis: { type: 'category', data: Object.keys(positionDistribution), axisLabel: { fontSize: 11 } },
     yAxis: { type: 'value', axisLabel: { fontSize: 11 } },
     series: [{ type: 'bar', data: Object.values(positionDistribution), itemStyle: { color: '#cc785c', borderRadius: [4, 4, 0, 0] }, barWidth: '50%' }],
-  };
+  }), [positionDistribution]);
 
   const getTrendTag = (trend: string) => {
     if (trend === 'rising') return <Tag color="green" style={{ fontSize: 11 }}>上升</Tag>;
@@ -229,6 +233,7 @@ export default function PotentialsPage() {
       title: '岗位',
       dataIndex: 'position',
       key: 'position',
+      responsive: ['md'] as const,
       width: 90,
       render: (position: string) => <Tag color="volcano" style={{ fontSize: 12 }}>{getPositionLabel(position)}</Tag>,
     },
@@ -278,6 +283,7 @@ export default function PotentialsPage() {
       title: '高潜类型',
       dataIndex: 'potentialType',
       key: 'potentialType',
+      responsive: ['md'] as const,
       width: 120,
       render: (type: string) => <Tag color="gold" style={{ fontSize: 12 }}>{type}</Tag>,
     },
@@ -285,6 +291,7 @@ export default function PotentialsPage() {
       title: '趋势',
       dataIndex: 'growthTrend',
       key: 'growthTrend',
+      responsive: ['md'] as const,
       width: 70,
       render: (trend: string) => getTrendTag(trend),
     },
@@ -307,13 +314,12 @@ export default function PotentialsPage() {
         </Link>
       ),
     },
-  ], []);
+  ], []) as any[];
 
   return (
     <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
-      <FlowStage current="intervene" />
       {/* 页面标题 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
           <StarOutlined style={{ color: '#d99a2b' }} />
           高潜人才
@@ -331,56 +337,56 @@ export default function PotentialsPage() {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
-          marginBottom: 20,
+          gap: 10,
+          marginBottom: 12,
         }}
       >
-        <Card variant="borderless" style={{ borderLeft: '3px solid #d99a2b' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>高潜人才总数</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: '#d99a2b', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <Card variant="borderless" style={{ borderLeft: '3px solid #d99a2b' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>高潜人才总数</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#d99a2b', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                 {data.interns.length}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>已识别人才</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>已识别人才</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fdf6e6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <TrophyOutlined style={{ fontSize: 20, color: '#d99a2b' }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#fdf6e6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <TrophyOutlined style={{ fontSize: 16, color: '#d99a2b' }} />
             </div>
           </div>
         </Card>
-        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-low)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>上升趋势</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--risk-low)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-low)' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>上升趋势</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--risk-low)', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                 {risingCount}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>持续成长中</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>持续成长中</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--risk-low-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <RiseOutlined style={{ fontSize: 20, color: 'var(--risk-low)' }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--risk-low-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <RiseOutlined style={{ fontSize: 16, color: 'var(--risk-low)' }} />
             </div>
           </div>
         </Card>
-        <Card variant="borderless" style={{ borderLeft: '3px solid var(--potential)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>高潜类型</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--potential)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <Card variant="borderless" style={{ borderLeft: '3px solid var(--potential)' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>高潜类型</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--potential)', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                 {Object.keys(typeDistribution).length}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>类型多样性</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>类型多样性</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: '#f3eefc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <TeamOutlined style={{ fontSize: 20, color: 'var(--potential)' }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f3eefc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <TeamOutlined style={{ fontSize: 16, color: 'var(--potential)' }} />
             </div>
           </div>
         </Card>
       </div>
 
       {/* 图表区域（缩小） */}
-      <div className="potential-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+      <div className="potential-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
         <Card variant="borderless" title={<span style={{ fontSize: 14, fontWeight: 600 }}>高潜类型分布</span>} styles={{ body: { padding: '8px 12px' } }}>
           <ChartWithFallback
             height={240}
@@ -447,7 +453,7 @@ export default function PotentialsPage() {
           rowKey="id"
           size="small"
           loading={loading}
-          scroll={{ x: 960 }}
+          scroll={{ x: isMobile ? 650 : 960 }}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,

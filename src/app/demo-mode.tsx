@@ -188,6 +188,32 @@ export default function DemoMode() {
     };
   }, [active, paused, currentStep]);
 
+  // Keyboard controls: → next, ← prev, space pause, esc exit
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCurrentStep(prev => Math.max(prev - 1, 0));
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        setPaused(prev => !prev);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setActive(false);
+        setCurrentStep(0);
+        setPaused(false);
+        setHighlightRect(null);
+        if (timerRef.current) clearTimeout(timerRef.current);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [active]);
+
   const startDemo = () => {
     setActive(true);
     setCurrentStep(0);
@@ -200,6 +226,11 @@ export default function DemoMode() {
     setPaused(false);
     setHighlightRect(null);
     if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  const finishDemo = () => {
+    stopDemo();
+    if (pathname !== '/') router.push('/');
   };
 
   const nextStep = () => {
@@ -316,7 +347,7 @@ export default function DemoMode() {
                 type="primary"
                 size="small"
                 icon={<CheckCircleOutlined />}
-                onClick={stopDemo}
+                onClick={finishDemo}
                 className="demo-done-button"
               >
                 完成演示
@@ -331,6 +362,9 @@ export default function DemoMode() {
                 {step.autoAdvanceMs ? '跳过' : '下一步'}
               </Button>
             )}
+          </div>
+          <div className="demo-kbd-hint">
+            <kbd>←</kbd>/<kbd>→</kbd> 切换 · <kbd>Space</kbd> 暂停 · <kbd>Esc</kbd> 退出
           </div>
         </div>
       </div>

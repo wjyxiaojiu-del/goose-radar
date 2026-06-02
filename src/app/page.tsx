@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, Row, Col, Statistic, Tag, Progress, Space, Button, Typography } from 'antd';
 import {
   AlertOutlined,
@@ -13,7 +13,9 @@ import {
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ChartWithFallback } from '@/components/chart-with-fallback';
+import { FallbackBanner } from '@/components/fallback-banner';
 import { FlowStage } from '@/components/flow-stage';
+import { AIStatusBadge } from '@/components/ai-status-badge';
 import { fetchJson } from '@/lib/fetch-json';
 
 const { Text } = Typography;
@@ -51,6 +53,7 @@ interface DashboardData {
     priority: string;
     internId?: string;
   }>;
+  aiStatus?: 'live' | 'cached-live' | 'cached-fallback' | 'fallback';
 }
 
 const FALLBACK_DASHBOARD_DATA: DashboardData = {
@@ -97,6 +100,7 @@ const FALLBACK_DASHBOARD_DATA: DashboardData = {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>(FALLBACK_DASHBOARD_DATA);
+  const [isFallback, setIsFallback] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -106,8 +110,11 @@ export default function DashboardPage() {
       validate: (d): d is DashboardData => !!d && typeof d === 'object' && 'stats' in d && 'riskDistribution' in d,
       timeoutMs: 6000,
       cacheMs: 60_000,
-    }).then(({ data }) => {
-      if (mounted) setData(data);
+    }).then(({ data, isFallback: fb }) => {
+      if (mounted) {
+        setData(data);
+        setIsFallback(fb);
+      }
     });
 
     return () => {
@@ -125,7 +132,7 @@ export default function DashboardPage() {
   const showCaseLink = !!primaryReminder?.internId;
 
   // 风险分布饼图
-  const riskPieOption = {
+  const riskPieOption = useMemo(() => ({
     tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
     legend: { bottom: '0%', left: 'center', itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 11 } },
     series: [{
@@ -145,10 +152,10 @@ export default function DashboardPage() {
         { value: data.riskDistribution.low, name: '稳定', itemStyle: { color: '#3b9f6b' } },
       ],
     }],
-  };
+  }), [data.riskDistribution.high, data.riskDistribution.medium, data.riskDistribution.low]);
 
   // 岗位对比柱状图
-  const positionBarOption = {
+  const positionBarOption = useMemo(() => ({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { data: ['平均适岗度', '高风险', '高潜'], top: 0, itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 11 } },
     grid: { left: '3%', right: '4%', bottom: '6%', top: '18%', containLabel: true },
@@ -177,10 +184,10 @@ export default function DashboardPage() {
         itemStyle: { color: '#3b9f6b', borderRadius: [4, 4, 0, 0] },
       },
     ],
-  };
+  }), [data.positionStats]);
 
   // 高潜类型分布（从positionStats聚合）
-  const potentialBarOption = {
+  const potentialBarOption = useMemo(() => ({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
     xAxis: { type: 'category', data: data.positionStats.map(p => p.name.replace('实习生', '')) },
@@ -194,11 +201,12 @@ export default function DashboardPage() {
         itemStyle: { color: '#cc785c', borderRadius: [4, 4, 0, 0] },
       })),
     }],
-  };
+  }), [data.positionStats]);
 
   return (
     <div className="dashboard-page">
-      <FlowStage current="scan" />
+      <FallbackBanner visible={isFallback} label="仪表盘" />
+      <FlowStage current="scan" caseId={primaryReminder?.internId} />
       <section data-demo="ai-banner" className="dashboard-hero hero-glass-card">
         <div className="dashboard-hero-main">
           <div className="hero-status-row">
@@ -206,7 +214,7 @@ export default function DashboardPage() {
               <RadarChartOutlined />
               AI 扫描完成
             </span>
-            <span className="hero-live-dot">今日待处理 {data.stats.alertsNeedingHR}</span>
+            <span className="hero-live-dot">待 HR 介入 {data.stats.alertsNeedingHR} 起</span>
           </div>
 
           <h2>从风险发现到干预闭环，一屏讲清楚。</h2>
@@ -311,7 +319,7 @@ export default function DashboardPage() {
       </Row>
 
       {/* 图表区域 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} lg={8}>
           <Card
             title="风险分布"
@@ -389,11 +397,12 @@ export default function DashboardPage() {
             <ThunderboltOutlined style={{ color: '#e8a55a' }} />
             <span style={{ color: 'var(--canvas)' }}>AI 今日提醒</span>
             <Tag color="volcano">{data.aiReminders.length}</Tag>
+            <AIStatusBadge status={data.aiStatus} />
           </Space>
         }
         variant="borderless"
         className="today-reminder-card"
-        style={{ marginBottom: 20, background: 'var(--surface-dark)' }}
+        style={{ marginBottom: 16, background: 'var(--surface-dark)' }}
         styles={{ header: { borderBottomColor: 'rgba(250,249,245,0.12)' } }}
       >
         {data.aiReminders.map(reminder => (

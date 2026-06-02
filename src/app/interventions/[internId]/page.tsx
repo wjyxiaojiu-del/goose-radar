@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import {
   App,
@@ -14,7 +14,6 @@ import {
   Alert,
   Steps,
   Divider,
-  Tooltip,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -27,10 +26,12 @@ import {
   CalendarOutlined,
   ScheduleOutlined,
   TeamOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { fetchJson } from '@/lib/fetch-json';
 import { FlowStage } from '@/components/flow-stage';
+import { AIStatusBadge } from '@/components/ai-status-badge';
 
 const { Title, Text } = Typography;
 
@@ -127,6 +128,7 @@ export default function InterventionPage() {
   const params = useParams();
   const [data, setData] = useState<InterventionData>(FALLBACK_INTERVENTION);
   const [visibleSteps, setVisibleSteps] = useState(0);
+  const [regenerating, setRegenerating] = useState(false);
   const [workflowTs] = useState(() => {
     const now = Date.now();
     const fmt = (ms: number) => new Date(now - ms).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -143,17 +145,43 @@ export default function InterventionPage() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    if (params.internId) {
-      fetchJson<InterventionData>(`/api/interventions/${params.internId}`, {
-        fallback: FALLBACK_INTERVENTION,
-        validate: (d): d is InterventionData => !!d && typeof d === 'object' && 'intern' in d,
-        timeoutMs: 8000,
-      }).then(({ data }) => {
-        setData(data);
-      });
-    }
+  const loadIntervention = useCallback((skipCache?: boolean) => {
+    if (!params.internId) return;
+    fetchJson<InterventionData>(`/api/interventions/${params.internId}`, {
+      fallback: FALLBACK_INTERVENTION,
+      validate: (d): d is InterventionData => !!d && typeof d === 'object' && 'intern' in d,
+      timeoutMs: 8000,
+      skipCache,
+    }).then(({ data }) => {
+      setData(data);
+    });
   }, [params.internId]);
+
+  useEffect(() => {
+    loadIntervention();
+  }, [loadIntervention]);
+
+  const regenerate = () => {
+    setRegenerating(true);
+    setVisibleSteps(0);
+    const animTimer = setInterval(() => {
+      setVisibleSteps(prev => {
+        if (prev >= 5) { clearInterval(animTimer); return prev; }
+        return prev + 1;
+      });
+    }, 600);
+    fetchJson<InterventionData>(`/api/interventions/${params.internId}?fresh=1`, {
+      fallback: FALLBACK_INTERVENTION,
+      validate: (d): d is InterventionData => !!d && typeof d === 'object' && 'intern' in d,
+      timeoutMs: 12000,
+      skipCache: true,
+    }).then(({ data }) => {
+      setData(data);
+      message.success('AI 已重新生成本次干预方案');
+    }).finally(() => {
+      setRegenerating(false);
+    });
+  };
 
   const copyScript = () => {
     navigator.clipboard.writeText(data.hrScript.fullScript);
@@ -175,7 +203,7 @@ export default function InterventionPage() {
 
   return (
     <div>
-      <FlowStage current="intervene" />
+      <FlowStage current="intervene" caseId={data.intern.id} />
       {/* 一行决策摘要 */}
       <div style={{
         display: 'flex',
@@ -218,7 +246,7 @@ export default function InterventionPage() {
         variant="borderless"
         data-demo="intervention-header"
         style={{
-          marginBottom: 20,
+          marginBottom: 16,
           background: `linear-gradient(135deg, ${riskColor}11 0%, ${riskColor}05 100%)`,
           borderLeft: `4px solid ${riskColor}`,
         }}
@@ -232,16 +260,19 @@ export default function InterventionPage() {
                   <Tag color={data.intern.riskLevel === '高' ? 'red' : data.intern.riskLevel === '中' ? 'orange' : 'green'} style={{ marginLeft: 12 }}>
                     {data.intern.riskLevel}风险
                   </Tag>
-                  <Tooltip title={
-                    data.aiStatus === 'live' ? 'MiMo LLM 本次实时返回，内容为 AI 原创生成' :
-                    data.aiStatus === 'cached-live' ? '已命中最近一次 MiMo 生成结果，保证秒开' :
-                    data.aiStatus === 'cached-fallback' ? '模型响应超时，已启用经验证的稳定方案并缓存，确保 HR 工作流不中断' :
-                    '模型暂不可用，启用基于规则的标准化方案'
-                  }>
-                    <Tag color={data.aiStatus === 'live' ? 'volcano' : data.aiStatus === 'cached-live' ? 'blue' : data.aiStatus === 'cached-fallback' ? 'orange' : 'default'} style={{ marginLeft: 8, fontSize: 12, fontWeight: 400 }}>
-                      {data.aiStatus === 'live' ? 'MiMo LLM 生成' : data.aiStatus === 'cached-live' ? 'MiMo LLM 生成' : data.aiStatus === 'cached-fallback' ? '稳定方案缓存' : '规则兜底'}
-                    </Tag>
-                  </Tooltip>
+                  <span style={{ marginLeft: 8, display: 'inline-block' }}>
+                    <AIStatusBadge status={data.aiStatus} />
+                  </span>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<ReloadOutlined spin={regenerating} />}
+                    onClick={regenerate}
+                    loading={regenerating}
+                    style={{ marginLeft: 4, fontSize: 12, color: 'var(--muted)' }}
+                  >
+                    {regenerating ? 'AI 重新生成中…' : '重新生成'}
+                  </Button>
                 </Title>
                 <Text type="secondary">
                   {data.intern.position} · 导师：{data.intern.mentor}
@@ -296,7 +327,7 @@ export default function InterventionPage() {
       </Card>
 
       {/* 流程步骤 */}
-      <Card variant="borderless" style={{ marginBottom: 20 }}>
+      <Card variant="borderless" style={{ marginBottom: 16 }}>
         <Steps
           current={-1}
           items={[
@@ -425,14 +456,14 @@ export default function InterventionPage() {
           >
             <div style={{ marginBottom: 12 }}>
               <Space>
-                <Tag color="blue">时长 {data.mentorOutline.duration}</Tag>
-                <Tag color="default">{data.mentorOutline.atmosphere}</Tag>
+                <Tag>时长 {data.mentorOutline.duration}</Tag>
+                <Tag>{data.mentorOutline.atmosphere}</Tag>
               </Space>
             </div>
             {data.mentorOutline.questions.map((item, i) => (
               <div key={i} style={{ marginBottom: 12 }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  <Tag color="blue" style={{ marginRight: 8 }}>Q{i + 1}</Tag>
+                  <Tag style={{ marginRight: 8 }}>Q{i + 1}</Tag>
                   {item.q}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--muted)', paddingLeft: 36 }}>

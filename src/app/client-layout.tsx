@@ -1,18 +1,22 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
-import { App, ConfigProvider, Grid, Layout, Menu } from "antd";
+import { App, ConfigProvider, Grid, Layout, Menu, notification } from "antd";
 import {
   RadarChartOutlined,
   TeamOutlined,
   WarningOutlined,
   ThunderboltOutlined,
   TrophyOutlined,
+  UserOutlined,
+  MessageOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import DemoMode from "./demo-mode";
+import { DemoGuide } from "@/components/demo-guide";
 
 const { Sider, Content, Header } = Layout;
 const { useBreakpoint } = Grid;
@@ -26,6 +30,33 @@ export default function ClientLayout({
   const [collapsed, setCollapsed] = useState(false);
   const screens = useBreakpoint();
   const isMobile = !screens.lg;
+
+  // Real-time alert notifications via SSE
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const evtSource = new EventSource('/api/alerts/stream');
+    evtSource.addEventListener('alerts', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        const first = data.alerts?.[0];
+        if (!first) return;
+        notification.warning({
+          message: `⚠️ 新的风险预警（${data.count}条）`,
+          description: `${first.internName}（${first.position}）— ${first.type} · 等级：${first.level}`,
+          placement: 'topRight',
+          duration: 8,
+          onClick: () => {
+            window.location.href = '/alerts';
+          },
+        });
+      } catch {
+        // ignore
+      }
+    });
+    return () => {
+      evtSource.close();
+    };
+  }, []);
 
   const menuItems = [
     {
@@ -52,6 +83,24 @@ export default function ClientLayout({
       key: "/potentials",
       icon: <span className="nav-icon"><TrophyOutlined /></span>,
       label: <Link href="/potentials">高潜人才</Link>,
+    },
+    {
+      key: "/assistant",
+      icon: <span className="nav-icon"><MessageOutlined /></span>,
+      label: <Link href="/assistant">AI 助手</Link>,
+    },
+    {
+      key: "/reports",
+      icon: <span className="nav-icon"><FileTextOutlined /></span>,
+      label: <Link href="/reports">报告中心</Link>,
+    },
+    {
+      type: 'divider' as const,
+    },
+    {
+      key: "/my",
+      icon: <span className="nav-icon"><UserOutlined /></span>,
+      label: <Link href="/my">我的成长</Link>,
     },
   ];
 
@@ -135,9 +184,7 @@ export default function ClientLayout({
                   borderBottom: "1px solid var(--hairline)",
                 }}
               >
-                <div className="app-brand-mark" aria-hidden="true">
-                  <span />
-                </div>
+                <img src="/tencent-logo-30.png" alt="" className="app-brand-mark" aria-hidden="true" />
                 <h1
                   style={{
                     color: "var(--ink)",
@@ -181,9 +228,7 @@ export default function ClientLayout({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                 {isMobile && (
-                  <div className="app-brand-mark mobile" aria-hidden="true">
-                    <span />
-                  </div>
+                  <img src="/tencent-logo-30.png" alt="" className="app-brand-mark mobile" aria-hidden="true" />
                 )}
                 <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 AI 实习生适岗识别与成长干预系统
@@ -194,13 +239,26 @@ export default function ClientLayout({
               </div>
             </Header>
             <Content style={{ margin: isMobile ? 12 : 24, minHeight: 280, paddingBottom: isMobile ? 80 : 0 }}>
+              <div className="demo-banner" style={{
+                background: 'linear-gradient(90deg, #cc785c 0%, #d4a017 100%)',
+                color: '#fff',
+                textAlign: 'center',
+                padding: '6px 16px',
+                fontSize: 13,
+                fontWeight: 500,
+                borderRadius: 8,
+                marginBottom: 16,
+                letterSpacing: 0.5,
+              }}>
+                🧪 本系统为 AI 实习生管理 Demo，数据均为模拟生成，不代表真实人员信息
+              </div>
               <div className="app-shell-content">
                 {children}
               </div>
             </Content>
             {isMobile && (
               <nav className="mobile-tabbar" aria-label="主要导航">
-                {menuItems.map((item) => {
+                {menuItems.filter(item => !item.type).map((item) => {
                   const selected = pathname === item.key || (item.key !== "/" && pathname.startsWith(String(item.key)));
                   return (
                     <Link
@@ -209,13 +267,14 @@ export default function ClientLayout({
                       className={selected ? "mobile-tabbar-item active" : "mobile-tabbar-item"}
                     >
                       {item.icon}
-                      <span>{String(item.key) === "/" ? "总览" : String(item.key) === "/interns" ? "实习生" : String(item.key) === "/alerts" ? "预警" : String(item.key) === "/suggestions" ? "建议" : "高潜"}</span>
+                      <span>{String(item.key) === "/" ? "总览" : String(item.key) === "/interns" ? "实习生" : String(item.key) === "/alerts" ? "预警" : String(item.key) === "/suggestions" ? "建议" : String(item.key) === "/assistant" ? "助手" : String(item.key) === "/my" ? "我的" : "高潜"}</span>
                     </Link>
                   );
                 })}
               </nav>
             )}
             <DemoMode />
+            <DemoGuide />
           </Layout>
         </Layout>
         </App>

@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -8,59 +9,59 @@ datasource db {
 
 // 岗位
 model Position {
-  id          String   @id @default(cuid())
-  name        String   // 研发/产品/销售/运营
-  abilities   String   // JSON: 能力维度列表
-  weights     String   // JSON: 各维度权重
-  createdAt   DateTime @default(now())
-  interns     Intern[]
+  id        String   @id @default(cuid())
+  name      String
+  abilities Json // 能力维度列表
+  weights   Json // 各维度权重
+  createdAt DateTime @default(now())
+  interns   Intern[]
 }
 
 // 导师
 model Mentor {
-  id          String   @id @default(cuid())
-  name        String
-  department  String
-  createdAt   DateTime @default(now())
-  interns     Intern[]
-  feedbacks   MentorFeedback[]
+  id         String           @id @default(cuid())
+  name       String
+  department String
+  createdAt  DateTime         @default(now())
+  interns    Intern[]
+  feedbacks  MentorFeedback[]
 }
 
 // 实习生
 model Intern {
-  id              String   @id @default(cuid())
-  name            String
-  gender          String   // 男/女
-  school          String
-  major           String
-  entryDate       DateTime // 入职日期
-  phase           String   @default("入门期") // 入门期/适应期/产出期/转正评估期
+  id                 String   @id @default(cuid())
+  name               String
+  gender             String // 男/女
+  school             String
+  major              String
+  entryDate          DateTime // 入职日期
+  phase              String   @default("入门期") // 入门期/适应期/产出期/转正评估期
 
-  positionId      String
-  position        Position @relation(fields: [positionId], references: [id])
+  positionId String
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
-  mentorId        String
-  mentor          Mentor   @relation(fields: [mentorId], references: [id])
+  mentorId String
+  mentor   Mentor   @relation(fields: [mentorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   // 核心评分（最新）
-  fitScore        Int      @default(0) // 适岗度 0-100
-  riskScore       Int      @default(0) // 风险度 0-100
-  potentialScore  Int      @default(0) // 高潜度 0-100
+  fitScore       Int @default(0) // 适岗度 0-100
+  riskScore      Int @default(0) // 风险度 0-100
+  potentialScore Int @default(0) // 高潜度 0-100
 
   // 标签（JSON数组）
-  tags            String   @default("[]")
+  tags Json @default("[]")
 
   // 风险等级：低/中/高
-  riskLevel       String   @default("低")
+  riskLevel String @default("低")
 
   // 高潜标签
-  potentialType   String   @default("")
+  potentialType String @default("")
 
   // 周任务完成率
-  taskCompletionRate Int   @default(0)
+  taskCompletionRate Int @default(0)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   weeklyReports   WeeklyReport[]
   mentorFeedbacks MentorFeedback[]
@@ -68,36 +69,46 @@ model Intern {
   abilityScores   AbilityScore[]
   riskAlerts      RiskAlert[]
   scoreHistory    ScoreHistory[]
+
+  @@index([positionId])
+  @@index([mentorId])
+  @@index([riskLevel])
+  @@index([potentialScore])
+  @@index([updatedAt])
 }
 
 // 周报
 model WeeklyReport {
   id          String   @id @default(cuid())
   internId    String
-  intern      Intern   @relation(fields: [internId], references: [id])
+  intern      Intern   @relation(fields: [internId], references: [id], onDelete: Cascade)
   weekStart   DateTime
   content     String
 
   // AI分析结果
-  aiSummary   String   @default("")
-  emotionSignal String @default("中性")
-  difficulties String  @default("")
-  needsHelp   Boolean  @default(false)
-  wordCount   Int      @default(0)
+  aiSummary     String   @default("")
+  emotionSignal String   @default("中性")
+  difficulties  String   @default("")
+  needsHelp     Boolean  @default(false)
+  wordCount     Int      @default(0)
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@unique([internId, weekStart])
+  @@index([internId])
+  @@index([weekStart])
 }
 
 // 导师反馈
 model MentorFeedback {
-  id          String   @id @default(cuid())
-  internId    String
-  intern      Intern   @relation(fields: [internId], references: [id])
-  mentorId    String
-  mentor      Mentor   @relation(fields: [mentorId], references: [id])
-  weekStart   DateTime
+  id        String   @id @default(cuid())
+  internId  String
+  intern    Intern   @relation(fields: [internId], references: [id], onDelete: Cascade)
+  mentorId  String
+  mentor    Mentor   @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  weekStart DateTime
 
-  performance Int      // 1-5
+  performance Int
   comment     String
 
   strengths   String   @default("")
@@ -105,14 +116,19 @@ model MentorFeedback {
   needsHR     Boolean  @default(false)
   isSpecific  Boolean  @default(true)
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@unique([internId, mentorId, weekStart])
+  @@index([internId])
+  @@index([mentorId])
+  @@index([weekStart])
 }
 
 // 任务
 model Task {
   id          String   @id @default(cuid())
   internId    String
-  intern      Intern   @relation(fields: [internId], references: [id])
+  intern      Intern   @relation(fields: [internId], references: [id], onDelete: Cascade)
   title       String
   description String   @default("")
   weekStart   DateTime
@@ -120,48 +136,64 @@ model Task {
   status      String   @default("pending")
   completedAt DateTime?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([internId])
+  @@index([status])
 }
 
 // 能力评分
 model AbilityScore {
-  id          String   @id @default(cuid())
-  internId    String
-  intern      Intern   @relation(fields: [internId], references: [id])
-  dimension   String
-  score       Int
-  weekStart   DateTime
+  id        String   @id @default(cuid())
+  internId  String
+  intern    Intern   @relation(fields: [internId], references: [id], onDelete: Cascade)
+  dimension String
+  score     Int
+  weekStart DateTime
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@unique([internId, dimension, weekStart])
+  @@index([internId])
+  @@index([dimension])
 }
 
 // 风险预警
 model RiskAlert {
   id          String   @id @default(cuid())
   internId    String
-  intern      Intern   @relation(fields: [internId], references: [id])
+  intern      Intern   @relation(fields: [internId], references: [id], onDelete: Cascade)
 
-  type        String
-  level       String
-  reason      String
-  action      String
+  type   String
+  level  String
+  reason Json
+  action String
 
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  resolvedAt  DateTime?
+  isActive   Boolean   @default(true)
+  resolvedAt DateTime?
+  resolvedBy String?
+
+  createdAt DateTime @default(now())
+
+  @@index([internId])
+  @@index([isActive, level, createdAt])
 }
 
 // 评分历史
 model ScoreHistory {
-  id          String   @id @default(cuid())
-  internId    String
-  intern      Intern   @relation(fields: [internId], references: [id])
-  weekStart   DateTime
+  id                 String   @id @default(cuid())
+  internId           String
+  intern             Intern   @relation(fields: [internId], references: [id], onDelete: Cascade)
+  weekStart          DateTime
 
-  fitScore    Int
-  riskScore   Int
-  potentialScore Int
+  fitScore           Int
+  riskScore          Int
+  potentialScore     Int
   taskCompletionRate Int
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@unique([internId, weekStart])
+  @@index([internId])
+  @@index([weekStart])
 }

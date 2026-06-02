@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "鹅苗雷达 - 实习生智能管理平台",
   description: "AI驱动的实习生适岗度分析与风险预警系统",
+  icons: {
+    icon: "/tencent-logo.png",
+  },
 };
 
 export const viewport: Viewport = {

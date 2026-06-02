@@ -49,3 +49,7 @@ screenshot-*.png
 
 # generated prisma client
 /src/generated/prisma
+
+*.db-wal
+*.db-shm
+*.bak

@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Card, Table, Tag, Progress, Input, Select, Space, Button, Avatar, Tooltip } from 'antd';
+import { Card, Table, Tag, Progress, Input, Select, Space, Button, Avatar, Tooltip, App, Grid } from 'antd';
 import {
   SearchOutlined,
   ReloadOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
+const { useBreakpoint } = Grid;
+
+import { useRouter } from 'next/navigation';
 import { fetchJson } from '@/lib/fetch-json';
 import { FlowStage } from '@/components/flow-stage';
 
@@ -79,11 +83,20 @@ function getAvatarSrc(name: string) {
 }
 
 export default function InternsPage() {
+  return <InternsContent />;
+}
+
+function InternsContent() {
+  const { message } = App.useApp();
+  const router = useRouter();
   const [interns, setInterns] = useState<Intern[]>(FALLBACK_INTERNS);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [positionFilter, setPositionFilter] = useState<string>('all');
   const [riskFilter, setRiskFilter] = useState<string>('all');
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const fetchInterns = useCallback((skipCache?: boolean) => {
     setLoading(true);
@@ -160,6 +173,7 @@ export default function InternsPage() {
       title: '入职天数',
       dataIndex: 'entryDate',
       key: 'entryDate',
+      responsive: ['md'] as const,
       width: 100,
       render: (date: string) => (
         <span>{getDaysSinceEntry(date)}天</span>
@@ -169,6 +183,7 @@ export default function InternsPage() {
       title: '阶段',
       dataIndex: 'phase',
       key: 'phase',
+      responsive: ['md'] as const,
       width: 100,
       render: (phase: string) => {
         const colorMap: Record<string, string> = {
@@ -214,6 +229,7 @@ export default function InternsPage() {
       title: '高潜度',
       dataIndex: 'potentialScore',
       key: 'potentialScore',
+      responsive: ['md'] as const,
       width: 120,
       sorter: (a: Intern, b: Intern) => a.potentialScore - b.potentialScore,
       render: (score: number) => (
@@ -243,6 +259,7 @@ export default function InternsPage() {
       title: '标签',
       dataIndex: 'tags',
       key: 'tags',
+      responsive: ['lg'] as const,
       width: 200,
       render: (tags: string[]) => (
         <Space wrap size={4}>
@@ -271,6 +288,7 @@ export default function InternsPage() {
       title: '任务完成率',
       dataIndex: 'taskCompletionRate',
       key: 'taskCompletionRate',
+      responsive: ['lg'] as const,
       width: 120,
       sorter: (a: Intern, b: Intern) => a.taskCompletionRate - b.taskCompletionRate,
       render: (rate: number) => (
@@ -300,7 +318,7 @@ export default function InternsPage() {
         </Space>
       ),
     },
-  ], []);
+  ], []) as any[];
 
   return (
     <div>
@@ -352,6 +370,23 @@ export default function InternsPage() {
           >
             刷新
           </Button>
+          <Button
+            type="primary"
+            icon={<SwapOutlined />}
+            disabled={selectedRowKeys.length < 2}
+            onClick={() => {
+              if (selectedRowKeys.length > 4) {
+                message.warning('最多对比 4 名实习生');
+                return;
+              }
+              router.push(`/compare?ids=${selectedRowKeys.join(',')}`);
+            }}
+          >
+            对比 {selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : ''}
+          </Button>
+          {selectedRowKeys.length > 0 && (
+            <Button type="link" onClick={() => setSelectedRowKeys([])}>清空选择</Button>
+          )}
         </Space>
       </Card>
 
@@ -362,9 +397,22 @@ export default function InternsPage() {
           columns={columns}
           rowKey="id"
           loading={loading}
-          scroll={{ x: 1500 }}
+          scroll={{ x: isMobile ? 800 : 1500 }}
           size="middle"
           rowClassName="intern-roster-row"
+          rowSelection={{
+            selectedRowKeys,
+            onChange: (keys) => {
+              if (keys.length > 4) {
+                message.warning('最多对比 4 名实习生');
+                return;
+              }
+              setSelectedRowKeys(keys);
+            },
+            getCheckboxProps: (record) => ({
+              disabled: selectedRowKeys.length >= 4 && !selectedRowKeys.includes(record.id),
+            }),
+          }}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,

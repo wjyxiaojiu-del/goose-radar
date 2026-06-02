@@ -146,13 +146,25 @@ a:hover {
 }
 
 .ant-card .ant-card-head {
-  border-bottom-color: var(--hairline);
+  border-bottom-color: var(--hairline-soft);
   color: var(--ink);
+  min-height: auto;
+  padding: 10px 16px;
+}
+
+.ant-card .ant-card-head-wrapper {
+  min-height: auto;
 }
 
 .ant-card .ant-card-head-title {
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 0;
+}
+
+.ant-card .ant-card-extra {
+  padding: 0;
 }
 
 .ant-btn {
@@ -193,8 +205,23 @@ a:hover {
 }
 
 .ant-tag {
-  border-radius: 999px;
+  border-radius: 4px;
   font-weight: 500;
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 6px;
+  margin-inline-end: 4px;
+}
+
+.ant-tag.ant-tag-has-color {
+  border-radius: 4px;
+}
+
+/* default tag 更克制：无边框、淡背景 */
+.ant-tag:not(.ant-tag-has-color) {
+  background: var(--surface-soft);
+  border-color: transparent;
+  color: var(--body);
 }
 
 .ant-progress .ant-progress-bg {
@@ -206,20 +233,37 @@ a:hover {
 }
 
 .ant-table-wrapper .ant-table-thead > tr > th {
-  background: var(--surface-soft);
-  border-bottom-color: var(--hairline);
+  background: transparent;
+  border-bottom: 1px solid var(--hairline);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  padding: 8px 12px !important;
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th::before {
+  display: none !important;
 }
 
 .ant-table-wrapper .ant-table-tbody > tr > td {
-  border-bottom-color: var(--hairline-soft);
+  border-bottom: 1px solid var(--hairline-soft);
   color: var(--body);
+  padding: 8px 12px !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr:last-child > td {
+  border-bottom-color: transparent;
 }
 
 .ant-table-wrapper .ant-table-tbody > tr:hover > td {
   background: #fbf4ed !important;
+}
+
+.ant-table-wrapper .ant-table.ant-table-small .ant-table-thead > tr > th,
+.ant-table-wrapper .ant-table.ant-table-small .ant-table-tbody > tr > td {
+  padding: 6px 10px !important;
 }
 
 .ant-popover .ant-popover-inner {
@@ -275,41 +319,15 @@ a:hover {
 }
 
 .app-brand-mark {
-  position: relative;
   width: 30px;
   height: 30px;
   flex: 0 0 30px;
   border: 1px solid var(--hairline);
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--surface-dark) 0%, #2f2b27 100%);
+  background: #fff;
   box-shadow: inset 0 0 0 1px rgba(250, 249, 245, 0.08), 0 8px 18px rgba(20, 20, 19, 0.1);
-}
-
-.app-brand-mark::before,
-.app-brand-mark::after,
-.app-brand-mark span {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  top: 14px;
-  height: 1.5px;
-  border-radius: 999px;
-  background: var(--canvas);
-  content: "";
-  transform-origin: center;
-}
-
-.app-brand-mark::before {
-  transform: rotate(90deg);
-}
-
-.app-brand-mark::after {
-  transform: rotate(45deg);
-}
-
-.app-brand-mark span {
-  display: block;
-  transform: rotate(-45deg);
+  object-fit: contain;
+  padding: 2px;
 }
 
 .nav-icon {
@@ -767,6 +785,36 @@ a:hover {
 .demo-done-button {
   background: #3b9f6b;
   border-color: #3b9f6b;
+}
+
+.demo-kbd-hint {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--hairline);
+  color: var(--muted-soft);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.demo-kbd-hint kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 5px;
+  margin: 0 2px;
+  border: 1px solid var(--hairline);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .intern-filter-card,
@@ -1235,4 +1283,170 @@ a:hover {
     bottom: 82px;
     max-width: calc(100vw - 24px);
   }
+}
+
+/* Markdown 渲染基础样式 */
+.markdown-body {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.markdown-body p {
+  margin: 0 0 0.6em 0;
+}
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  margin: 0.8em 0 0.4em 0;
+  font-weight: 600;
+  color: #141413;
+}
+.markdown-body h1 { font-size: 1.25em; }
+.markdown-body h2 { font-size: 1.15em; }
+.markdown-body h3 { font-size: 1.05em; }
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.4em 0;
+  padding-left: 1.4em;
+}
+.markdown-body li {
+  margin: 0.2em 0;
+}
+.markdown-body code {
+  background: #f5f0e8;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: var(--font-geist-mono), monospace;
+}
+.markdown-body pre {
+  background: #f5f0e8;
+  padding: 10px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.6em 0;
+}
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+.markdown-body strong {
+  font-weight: 600;
+  color: #cc785c;
+}
+.markdown-body blockquote {
+  margin: 0.6em 0;
+  padding-left: 10px;
+  border-left: 3px solid #e6dfd8;
+  color: #6c6a64;
+}
+.markdown-body table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 13px;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #e6dfd8;
+  padding: 6px 10px;
+  text-align: left;
+}
+.markdown-body th {
+  background: #f5f0e8;
+  font-weight: 600;
+}
+
+/* ========== Mobile Optimizations ========== */
+
+@media (max-width: 768px) {
+  /* Reduce table font size and padding on mobile */
+  .ant-table {
+    font-size: 13px;
+  }
+  .ant-table-cell {
+    padding: 8px 10px !important;
+  }
+  .ant-table-thead > tr > th {
+    padding: 8px 10px !important;
+  }
+
+  /* Smaller tags on mobile */
+  .ant-tag {
+    font-size: 11px;
+    padding: 0 6px;
+    line-height: 18px;
+  }
+
+  /* Cards padding */
+  .ant-card-body {
+    padding: 12px !important;
+  }
+
+  /* Reduce chart height on mobile */
+  .echarts-for-react {
+    min-height: 200px !important;
+  }
+
+  /* Filter bar: full width inputs on mobile */
+  .intern-filter-card .ant-input,
+  .intern-filter-card .ant-select {
+    width: 100% !important;
+  }
+
+  /* Notification width */
+  .ant-notification-notice {
+    max-width: calc(100vw - 32px);
+  }
+
+  /* Smaller progress bars */
+  .ant-progress-line {
+    font-size: 12px;
+  }
+
+  /* Report page: reduce padding */
+  .app-shell-content > div > div[ref] {
+    padding: 16px !important;
+  }
+}
+
+/* Fix mobile tabbar overlap */
+.mobile-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #fff;
+  border-top: 1px solid #e6dfd8;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-tabbar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 100%;
+  flex: 1;
+  color: #8e8b82;
+  font-size: 11px;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.mobile-tabbar-item.active {
+  color: #cc785c;
+}
+
+/* Ensure content doesn't get hidden behind mobile tabbar */
+.ant-layout-content {
+  padding-bottom: max(80px, env(safe-area-inset-bottom)) !important;
 }

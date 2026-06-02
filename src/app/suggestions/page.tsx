@@ -8,7 +8,6 @@ import {
   Button,
   Tabs,
   Progress,
-  Tooltip,
 } from 'antd';
 import {
   BulbOutlined,
@@ -25,6 +24,7 @@ import {
 import Link from 'next/link';
 import { fetchJson } from '@/lib/fetch-json';
 import { FlowStage } from '@/components/flow-stage';
+import { AIStatusBadge } from '@/components/ai-status-badge';
 
 interface SuggestionsData {
   aiStatus?: 'live' | 'cached-live' | 'cached-fallback' | 'fallback';
@@ -193,20 +193,7 @@ function SuggestionsContent() {
     message.success(`已标记 ${name} 本周跟进`);
   };
 
-  // AI 状态标签
-  const aiStatusLabel = data.aiStatus === 'live' ? 'MiMo LLM 生成'
-    : data.aiStatus === 'cached-live' ? 'MiMo LLM 生成'
-    : data.aiStatus === 'cached-fallback' ? '稳定方案缓存'
-    : '规则兜底';
-  const aiStatusColor = data.aiStatus === 'live' ? 'volcano'
-    : data.aiStatus === 'cached-live' ? 'blue'
-    : data.aiStatus === 'cached-fallback' ? 'orange'
-    : 'default';
-  const aiStatusTip = data.aiStatus === 'live' ? 'MiMo LLM 本次实时返回，内容为 AI 原创生成'
-    : data.aiStatus === 'cached-live' ? '已命中最近一次 MiMo 生成结果，保证秒开'
-    : data.aiStatus === 'cached-fallback' ? '模型响应超时，已启用经验证的稳定方案并缓存'
-    : '模型暂不可用，启用基于规则的标准化方案';
-
+  // AI 状态徽章使用统一组件 AIStatusBadge
   const selectedMentorTemplate = data.mentorTemplates[0];
   const selectedTaskList = selectedIntern
     ? data.nextWeekTasks[selectedIntern.position] || data.nextWeekTasks[`${getPositionLabel(selectedIntern.position)}实习生`] || []
@@ -303,15 +290,11 @@ function SuggestionsContent() {
           <BulbOutlined style={{ color: 'var(--ai)' }} />
           HR 今日行动台
         </h2>
-        <Tooltip title={aiStatusTip}>
-          <Tag color={aiStatusColor} style={{ fontSize: 11 }}>
-            {aiStatusLabel}
-          </Tag>
-        </Tooltip>
+        <AIStatusBadge status={data.aiStatus} />
         <div style={{ flex: 1 }} />
         <Button icon={<ReloadOutlined />} onClick={() => fetchSuggestions(true)} size="small" loading={loading}>刷新</Button>
       </div>
-      <p style={{ margin: '0 0 20px', color: 'var(--muted)', fontSize: 13 }}>
+      <p style={{ margin: '0 0 16px', color: 'var(--muted)', fontSize: 13 }}>
         AI 根据风险预警、周报、导师反馈和任务完成情况，生成今日处理优先级与可执行材料
       </p>
 
@@ -321,49 +304,49 @@ function SuggestionsContent() {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
-          marginBottom: 20,
+          gap: 10,
+          marginBottom: 12,
         }}
       >
-        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-high)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>今日必须处理</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--risk-high)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-high)' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>今日必须处理</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--risk-high)', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                 {highPriority.length}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>高优先级对象</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>高优先级对象</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--risk-high-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ThunderboltOutlined style={{ fontSize: 20, color: 'var(--risk-high)' }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--risk-high-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <ThunderboltOutlined style={{ fontSize: 16, color: 'var(--risk-high)' }} />
             </div>
           </div>
         </Card>
-        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-mid)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>建议本周跟进</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--risk-mid)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-mid)' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>建议本周跟进</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--risk-mid)', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                 {mediumPriority.length}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>中优先级对象</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>中优先级对象</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--risk-mid-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CalendarOutlined style={{ fontSize: 20, color: 'var(--risk-mid)' }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--risk-mid-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <CalendarOutlined style={{ fontSize: 16, color: 'var(--risk-mid)' }} />
             </div>
           </div>
         </Card>
-        <Card variant="borderless" style={{ borderLeft: '3px solid var(--ai)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>已生成材料</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ai)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <Card variant="borderless" style={{ borderLeft: '3px solid var(--ai)' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>已生成材料</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--ai)', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                 {materialCount}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>话术 / 提纲 / 任务</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>话术 / 提纲 / 任务</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--ai-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <FileTextOutlined style={{ fontSize: 20, color: 'var(--ai)' }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--ai-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <FileTextOutlined style={{ fontSize: 16, color: 'var(--ai)' }} />
             </div>
           </div>
         </Card>
@@ -523,7 +506,7 @@ function SuggestionsContent() {
               }
             >
               {/* 为什么现在处理 */}
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>
                   为什么现在处理
                 </div>
@@ -542,7 +525,7 @@ function SuggestionsContent() {
 
               {/* HR 沟通目标 */}
               {selectedIntern.goal && (
-                <div style={{ marginBottom: 20 }}>
+                <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>
                     HR 沟通目标
                   </div>
@@ -561,7 +544,7 @@ function SuggestionsContent() {
 
               {/* 推荐动作 */}
               {selectedIntern.method && (
-                <div style={{ marginBottom: 20 }}>
+                <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>
                     推荐动作
                   </div>
@@ -579,7 +562,7 @@ function SuggestionsContent() {
 
               {/* 可复制话术 */}
               {selectedIntern.suggestion && (
-                <div style={{ marginBottom: 20 }}>
+                <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>
                     HR 沟通话术
                   </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { App, Card, Table, Tag, Button, Progress, Popover } from 'antd';
+import { App, Card, Table, Tag, Button, Progress, Popover, Grid } from 'antd';
 import {
   WarningOutlined,
   QuestionCircleOutlined,
@@ -12,9 +12,13 @@ import {
   CheckCircleOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
+const { useBreakpoint } = Grid;
+
 import Link from 'next/link';
 import { fetchJson } from '@/lib/fetch-json';
 import { FlowStage } from '@/components/flow-stage';
+import { FallbackBanner } from '@/components/fallback-banner';
+import { fetchWithCsrf } from '@/lib/csrf-client';
 
 interface AlertItem {
   id: string;
@@ -64,8 +68,11 @@ function getPositionLabel(position: string) {
 export default function AlertsPage() {
   const { message } = App.useApp();
   const [alerts, setAlerts] = useState<AlertItem[]>(FALLBACK_ALERTS);
+  const [isFallback, setIsFallback] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   const fetchAlerts = useCallback((skipCache?: boolean) => {
     setLoading(true);
@@ -74,8 +81,9 @@ export default function AlertsPage() {
       validate: (d): d is AlertItem[] => Array.isArray(d),
       timeoutMs: 6000,
       skipCache,
-    }).then(({ data }) => {
+    }).then(({ data, isFallback: fb }) => {
       setAlerts(data);
+      setIsFallback(fb);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -86,10 +94,17 @@ export default function AlertsPage() {
 
   const handleResolve = useCallback((alertId: string) => {
     setResolvedIds(prev => new Set(prev).add(alertId));
-    message.success('已标记为处理中');
-    fetch(`/api/alerts/${alertId}`, { method: 'PATCH' })
-      .then(res => res.json())
+    fetchWithCsrf(`/api/alerts/${alertId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(() => {
+        message.success('已标记为处理中');
         setTimeout(() => {
           setAlerts(prev => prev.filter(a => a.id !== alertId));
           setResolvedIds(prev => {
@@ -101,6 +116,7 @@ export default function AlertsPage() {
       })
       .catch(err => {
         console.error('处理预警失败:', err);
+        message.error('处理失败，请重试');
         setResolvedIds(prev => {
           const next = new Set(prev);
           next.delete(alertId);
@@ -176,6 +192,7 @@ export default function AlertsPage() {
       title: '岗位',
       dataIndex: 'position',
       key: 'position',
+      responsive: ['md'] as const,
       width: 90,
       render: (position: string) => <Tag color="volcano" style={{ fontSize: 12 }}>{getPositionLabel(position)}</Tag>,
     },
@@ -183,6 +200,7 @@ export default function AlertsPage() {
       title: '风险类型',
       dataIndex: 'type',
       key: 'type',
+      responsive: ['md'] as const,
       width: 100,
       render: (type: string) => {
         const typeColors: Record<string, string> = {
@@ -214,6 +232,7 @@ export default function AlertsPage() {
       title: '关键触发信号',
       dataIndex: 'reason',
       key: 'reason',
+      responsive: ['lg'] as const,
       width: 200,
       ellipsis: true,
       render: (reason: string[]) => (
@@ -233,6 +252,7 @@ export default function AlertsPage() {
       title: '适岗度',
       dataIndex: 'fitScore',
       key: 'fitScore',
+      responsive: ['md'] as const,
       width: 120,
       render: (score: number) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -253,6 +273,7 @@ export default function AlertsPage() {
       title: '风险度',
       dataIndex: 'riskScore',
       key: 'riskScore',
+      responsive: ['md'] as const,
       width: 120,
       render: (score: number) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -295,13 +316,14 @@ export default function AlertsPage() {
         </div>
       ),
     },
-  ], [handleResolve]);
+  ], [handleResolve]) as any[];
 
   return (
     <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
+      <FallbackBanner visible={isFallback} label="预警" />
       <FlowStage current="alert" />
       {/* 页面标题 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
           <WarningOutlined style={{ color: 'var(--risk-high)' }} />
           风险预警
@@ -317,66 +339,66 @@ export default function AlertsPage() {
         </Button>
       </div>
 
-      {/* 顶部指标卡 */}
-      <div style={{
+      {/* 顶部指标卡 — 紧凑横排 */}
+      <div className="alert-stats-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: 12,
-        marginBottom: 16,
-      }} className="alert-stats-grid">
-        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-high)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>高风险预警</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--risk-high)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        gap: 10,
+        marginBottom: 12,
+      }}>
+        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-high)' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>高风险预警</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--risk-high)', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                 {stats.highCount}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>需立即处理</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>需立即处理</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--risk-high-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ExclamationCircleOutlined style={{ fontSize: 20, color: 'var(--risk-high)' }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--risk-high-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <ExclamationCircleOutlined style={{ fontSize: 16, color: 'var(--risk-high)' }} />
             </div>
           </div>
         </Card>
-        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-mid)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>中风险预警</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--risk-mid)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-mid)' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>中风险预警</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--risk-mid)', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                 {stats.midCount}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>需关注跟进</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>需关注跟进</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--risk-mid-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <WarningOutlined style={{ fontSize: 20, color: 'var(--risk-mid)' }} />
-            </div>
-          </div>
-        </Card>
-        <Card variant="borderless" style={{ borderLeft: '3px solid var(--ai)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>今日需处理</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ai)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                {stats.total}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>活跃预警总数</div>
-            </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--ai-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <FileTextOutlined style={{ fontSize: 20, color: 'var(--ai)' }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--risk-mid-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <WarningOutlined style={{ fontSize: 16, color: 'var(--risk-mid)' }} />
             </div>
           </div>
         </Card>
-        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-low)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 4 }}>可生成方案</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--risk-low)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <Card variant="borderless" style={{ borderLeft: '3px solid var(--ai)' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>今日需处理</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--ai)', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                 {stats.total}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>AI干预方案</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>活跃预警总数</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--risk-low-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircleOutlined style={{ fontSize: 20, color: 'var(--risk-low)' }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--ai-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <FileTextOutlined style={{ fontSize: 16, color: 'var(--ai)' }} />
+            </div>
+          </div>
+        </Card>
+        <Card variant="borderless" style={{ borderLeft: '3px solid var(--risk-low)' }} styles={{ body: { padding: '10px 14px' } }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>可生成方案</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--risk-low)', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
+                {stats.total}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>AI 干预方案</div>
+            </div>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--risk-low-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <CheckCircleOutlined style={{ fontSize: 16, color: 'var(--risk-low)' }} />
             </div>
           </div>
         </Card>
@@ -418,7 +440,7 @@ export default function AlertsPage() {
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontWeight: 600, fontSize: 15 }}>活跃预警处置队列</span>
-            <Tag color="var(--ai)" style={{ fontSize: 11 }}>{alerts.length}</Tag>
+            <Tag style={{ fontSize: 11 }}>{alerts.length}</Tag>
           </div>
         }
         variant="borderless"
@@ -433,7 +455,7 @@ export default function AlertsPage() {
             `${resolvedIds.has(record.id) ? 'alert-resolving' : ''} ${record.level === '高' ? 'alert-row-high' : ''}`
           }
           loading={loading}
-          scroll={{ x: 1050 }}
+          scroll={{ x: isMobile ? 700 : 1050 }}
           size="small"
           pagination={{
             pageSize: 10,

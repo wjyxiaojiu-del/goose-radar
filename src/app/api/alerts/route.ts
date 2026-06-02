@@ -1,29 +1,17 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getActiveAlerts } from '@/repositories/alert';
+import { safeJsonParse } from '@/lib/safe-json';
+import type { AlertItem } from '@/types/api';
+
+const CACHE_HEADERS = { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=30' };
 
 export async function GET() {
   try {
-    const alerts = await prisma.riskAlert.findMany({
-      where: {
-        isActive: true,
-      },
-      include: {
-        intern: {
-          include: {
-            position: true,
-            mentor: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const alerts = await getActiveAlerts();
 
-    // 按风险度降序排序（高风险在前），中文 level 字母序不可靠
-    const sorted = alerts.sort((a, b) => b.intern.riskScore - a.intern.riskScore);
-
-    const formattedAlerts = sorted.map(alert => ({
+    const formatted: AlertItem[] = alerts.map((alert) => ({
       id: alert.id,
-      internId: alert.internId,
+      internId: alert.intern.id,
       internName: alert.intern.name,
       internSchool: alert.intern.school,
       position: alert.intern.position.name,
@@ -32,17 +20,14 @@ export async function GET() {
       riskScore: alert.intern.riskScore,
       type: alert.type,
       level: alert.level,
-      reason: JSON.parse(alert.reason),
+      reason: safeJsonParse<string[]>(Array.isArray(alert.reason) ? JSON.stringify(alert.reason) : String(alert.reason), []),
       action: alert.action,
       createdAt: alert.createdAt,
     }));
 
-    return NextResponse.json(formattedAlerts);
+    return NextResponse.json(formatted, { headers: CACHE_HEADERS });
   } catch (error) {
     console.error('Alerts API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch alerts' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch alerts' }, { status: 500 });
   }
 }

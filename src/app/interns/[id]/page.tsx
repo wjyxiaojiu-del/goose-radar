@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Card,
@@ -133,6 +133,8 @@ const FALLBACK_INTERN_DETAIL: InternDetail = {
 export default function InternDetailPage() {
   const params = useParams();
   const [intern, setIntern] = useState<InternDetail>(FALLBACK_INTERN_DETAIL);
+  const [forecast, setForecast] = useState<Array<{ week: string; fitScore: number; riskScore: number; potentialScore: number }> | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -143,11 +145,20 @@ export default function InternDetailPage() {
       }).then(({ data }) => {
         setIntern(data);
       });
+      // Load forecast data
+      setForecastLoading(true);
+      fetch(`/api/interns/${params.id}/predict`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.forecast) setForecast(d.forecast);
+        })
+        .catch(() => {})
+        .finally(() => setForecastLoading(false));
     }
   }, [params.id]);
 
   // 能力雷达图配置
-  const radarOption = {
+  const radarOption = useMemo(() => ({
     tooltip: {},
     radar: {
       indicator: intern.abilityScores.map(a => ({
@@ -175,63 +186,103 @@ export default function InternDetailPage() {
         ],
       },
     ],
-  };
+  }), [intern.abilityScores, intern.basicInfo.name]);
 
-  // 趋势图配置
-  const trendOption = {
-    tooltip: {
-      trigger: 'axis',
-    },
-    legend: {
-      data: ['适岗度', '风险度', '高潜度', '任务完成率'],
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'category',
-      data: intern.trendData.map(t => t.week),
-      axisLabel: {
-        formatter: (value: string) => {
-          const date = new Date(value);
-          return `${date.getMonth() + 1}/${date.getDate()}`;
-        },
-      },
-    },
-    yAxis: {
-      type: 'value',
-      max: 100,
-    },
-    series: [
+  // Merge historical + forecast data for chart
+  const allWeeks = useMemo(() => {
+    const historical = intern.trendData.map(t => t.week);
+    const forecastWeeks = forecast?.map(f => f.week) ?? [];
+    return [...historical, ...forecastWeeks];
+  }, [intern.trendData, forecast]);
+
+  // 趋势图配置（含预测虚线）
+  const trendOption = useMemo(() => {
+    const historical = intern.trendData;
+    const f = forecast ?? [];
+    const series: Array<Record<string, unknown>> = [
       {
         name: '适岗度',
         type: 'line',
-        data: intern.trendData.map(t => t.fitScore),
+        data: [...historical.map(t => t.fitScore), ...f.map(x => ({ value: x.fitScore, symbol: 'emptyCircle' }))],
         itemStyle: { color: '#4f6dbd' },
+        lineStyle: { width: 2 },
       },
       {
         name: '风险度',
         type: 'line',
-        data: intern.trendData.map(t => t.riskScore),
+        data: [...historical.map(t => t.riskScore), ...f.map(x => ({ value: x.riskScore, symbol: 'emptyCircle' }))],
         itemStyle: { color: '#d94b4b' },
+        lineStyle: { width: 2 },
       },
       {
         name: '高潜度',
         type: 'line',
-        data: intern.trendData.map(t => t.potentialScore),
+        data: [...historical.map(t => t.potentialScore), ...f.map(x => ({ value: x.potentialScore, symbol: 'emptyCircle' }))],
         itemStyle: { color: '#3b9f6b' },
+        lineStyle: { width: 2 },
       },
       {
         name: '任务完成率',
         type: 'line',
-        data: intern.trendData.map(t => t.taskCompletionRate),
+        data: historical.map(t => t.taskCompletionRate),
         itemStyle: { color: '#cc785c' },
+        lineStyle: { width: 2 },
       },
-    ],
-  };
+    ];
+
+    // Add forecast dashed line overlays for the first 3 metrics
+    if (f.length > 0) {
+      series.push(
+        {
+          name: '适岗度预测',
+          type: 'line',
+          data: [...Array(historical.length).fill(null), ...f.map(x => x.fitScore)],
+          itemStyle: { color: '#4f6dbd' },
+          lineStyle: { type: 'dashed', width: 2 },
+          symbol: 'none',
+          silent: true,
+        },
+        {
+          name: '风险度预测',
+          type: 'line',
+          data: [...Array(historical.length).fill(null), ...f.map(x => x.riskScore)],
+          itemStyle: { color: '#d94b4b' },
+          lineStyle: { type: 'dashed', width: 2 },
+          symbol: 'none',
+          silent: true,
+        },
+        {
+          name: '高潜度预测',
+          type: 'line',
+          data: [...Array(historical.length).fill(null), ...f.map(x => x.potentialScore)],
+          itemStyle: { color: '#3b9f6b' },
+          lineStyle: { type: 'dashed', width: 2 },
+          symbol: 'none',
+          silent: true,
+        }
+      );
+    }
+
+    return {
+      tooltip: { trigger: 'axis' },
+      legend: {
+        data: ['适岗度', '风险度', '高潜度', '任务完成率', ...(f.length > 0 ? ['适岗度预测', '风险度预测', '高潜度预测'] : [])],
+      },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: allWeeks,
+        axisLabel: {
+          formatter: (value: string) => {
+            const date = new Date(value);
+            return `${date.getMonth() + 1}/${date.getDate()}`;
+          },
+        },
+      },
+      yAxis: { type: 'value', max: 100 },
+      series,
+    };
+  }, [intern.trendData, forecast, allWeeks]);
 
   // 计算入职天数
   const entryDate = new Date(intern.basicInfo.entryDate);
@@ -431,7 +482,22 @@ export default function InternDetailPage() {
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card title="趋势变化" variant="borderless">
+          <Card
+            title={
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                趋势变化
+                {forecast && forecast.length > 0 && (
+                  <span style={{ fontSize: 12, fontWeight: 400, color: '#8e8b82', background: '#f5f0e8', padding: '2px 8px', borderRadius: 10 }}>
+                    AI 预测已叠加（虚线）
+                  </span>
+                )}
+                {forecastLoading && (
+                  <span style={{ fontSize: 12, color: '#8e8b82' }}>预测加载中...</span>
+                )}
+              </span>
+            }
+            variant="borderless"
+          >
             <ChartWithFallback
               height={300}
               fallback={

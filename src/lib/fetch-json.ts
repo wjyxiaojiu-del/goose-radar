@@ -12,7 +12,7 @@ export interface FetchJsonOptions<T> {
   fallback: T;
   /** AbortSignal，用于外部取消 */
   signal?: AbortSignal;
-  /** 缓存 TTL 毫秒数，默认 30000（30秒）。设为 0 禁用缓存 */
+  /** 缓存 TTL 毫秒数，默认 300000（5分钟）。设为 0 禁用缓存 */
   cacheMs?: number;
   /** 跳过缓存，强制请求 */
   skipCache?: boolean;
@@ -39,7 +39,7 @@ export async function fetchJson<T>(
   url: string,
   options: FetchJsonOptions<T>,
 ): Promise<FetchJsonResult<T>> {
-  const { timeoutMs = 6000, validate, fallback, signal, cacheMs = 30_000, skipCache } = options;
+  const { timeoutMs = 6000, validate, fallback, signal, cacheMs = 300_000, skipCache } = options;
 
   // 命中缓存直接返回
   if (cacheMs > 0 && !skipCache) {
